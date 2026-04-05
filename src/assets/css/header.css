@@ -1,0 +1,149 @@
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  background: rgba(13, 13, 13, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.header-inner {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--fc-white);
+}
+
+.brand-main {
+  display: inline-block;
+  font-size: 2.1rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.09em;
+  transform: scaleY(0.92);
+  animation: brandFloat 2.4s ease-in-out infinite;
+}
+
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--fc-white);
+  opacity: 0.8;
+  animation: dotBlink 1.8s ease-in-out infinite;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 38px;
+}
+
+.header-nav a {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1.05rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+  letter-spacing: -0.01em;
+}
+
+.header-nav a:hover {
+  color: var(--fc-white);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-name {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ── LOGIN / SIGN UP 공통 ── */
+.login-btn,
+.signup-btn {
+  min-width: 86px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: none;
+  color: rgba(255, 255, 255, 0.6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.login-btn:hover,
+.signup-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.55);
+  color: var(--fc-white);
+}
+
+/* ── LOGOUT ── */
+.logout-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.logout-btn:hover {
+  color: var(--fc-white);
+}
+
+/* ── 애니메이션 ── */
+@keyframes brandFloat {
+  0%, 100% { transform: scaleY(0.92) translateY(0); }
+  50%       { transform: scaleY(0.92) translateY(-1px); }
+}
+
+@keyframes dotBlink {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.18); }
+}
+
+/* ── 반응형 ── */
+@media (max-width: 991px) {
+  .header-nav { gap: 24px; }
+}
+
+@media (max-width: 767px) {
+  .header-inner { height: 64px; }
+  .brand-main   { font-size: 1.8rem; }
+  .header-actions { gap: 8px; }
+
+  .login-btn,
+  .signup-btn {
+    min-width: 70px;
+    height: 32px;
+    font-size: 0.68rem;
+    padding: 0 12px;
+  }
+}

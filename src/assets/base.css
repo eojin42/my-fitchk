@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --fc-bg: #f4f4f2;
+  --fc-surface: #ffffff;
+  --fc-surface-2: #f8f8f6;
+  --fc-text: #111111;
+  --fc-text-soft: #666666;
+  --fc-text-muted: #8b8b86;
+  --fc-line: #e5e5df;
+  --fc-line-dark: rgba(17, 17, 17, 0.14);
+  --fc-black: #0d0d0d;
+  --fc-white: #ffffff;
+
+  --fc-radius-sm: 14px;
+  --fc-radius-md: 20px;
+  --fc-radius-lg: 30px;
+
+  --fc-shadow-sm: 0 10px 24px rgba(17, 17, 17, 0.05);
+  --fc-shadow-md: 0 18px 40px rgba(17, 17, 17, 0.08);
+
+  --fc-font: 'Inter', 'Pretendard', 'Noto Sans KR', 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+}
+
+/* reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  background: var(--fc-bg);
+  color: var(--fc-text);
+  font-family: var(--fc-font);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#app {
+  min-height: 100vh;
+  background: var(--fc-bg);
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* form */
+input,
+textarea,
+select {
+  width: 100%;
+  background: var(--fc-surface);
+  color: var(--fc-text);
+  border: 1px solid var(--fc-line);
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(17, 17, 17, 0.28);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.05);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fc-text-muted);
+}
+
+/* common utility */
+.section-title {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: -0.07em;
+  color: var(--fc-text);
+}
+
+.base-card {
+  background: var(--fc-surface);
+  border-radius: 24px;
+  box-shadow: var(--fc-shadow-sm);
+}
+
+.btn-pill-dark,
+.btn-pill-line,
+.btn-pill-light {
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-pill-dark {
+  background: var(--fc-black);
+  color: var(--fc-white);
+}
+
+.btn-pill-dark:hover {
+  opacity: 0.92;
+}
+
+.btn-pill-line {
+  background: transparent;
+  color: var(--fc-text);
+  border: 1px solid var(--fc-line-dark);
+}
+
+.btn-pill-line:hover {
+  background: rgba(17, 17, 17, 0.03);
+}
+
+.btn-pill-light {
+  background: var(--fc-white);
+  color: var(--fc-text);
+}
+
+.text-muted {
+  color: var(--fc-text-muted);
+}
+
+.text-soft {
+  color: var(--fc-text-soft);
+}
+
+/* scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--fc-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d2d2cb;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bdbdb6;
+}
+
+:root {
+  --accent-color: #111111;  /* paginate.css 활성 색상을 검정으로 */
+}
