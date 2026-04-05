@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # my-fitchk
 
 This template should help get you started developing with Vue 3 in Vite.
@@ -36,3 +37,6 @@ npm run dev
 ```sh
 npm run build
 ```
+=======
+# my-fitchk
+>>>>>>> 914f6886109dce9f119b3daaa6ea323e5928896f
