@@ -9,13 +9,16 @@ const routes = [
   { path: '/',       name: 'Home',   component: HomeView },
   { path: '/login',  name: 'Login',  component: () => import('@/views/member/LoginView.vue') },
   { path: '/signup', name: 'Signup', component: () => import('@/views/member/SignupView.vue') },
-
+  { path: '/complete', name: 'Complete', component: () => import('@/views/member/CompleteView.vue') },
+  { path: '/my/edit', name: 'MyEdit', component: () => import('@/views/member/SignupView.vue'), meta: { requiresAuth: true } },
+  
   // ── 피드 ──────────────────────────────────────
   { path: '/post/write', name: 'PostWrite',  component: () => import('@/views/style/WriteView.vue'), meta: { requiresAuth: true } },
  { path: '/post/:id',   name: 'PostDetail', component: () => import('@/views/style/DetailView.vue') },
 
   // ── 스타일 ────────────────────────────────────
   { path: '/style', name: 'Style', component: () => import('@/views/StyleView.vue') },
+  { path: '/posts/:id/edit', name: 'PostEdit', component: () => import('@/views/style/WriteView.vue'), meta: { requiresAuth: true } },
 
   // ── AI ────────────────────────────────────
   { path: '/ai', name: 'AI', component: () => import('@/views/AIView.vue') },
@@ -26,8 +29,6 @@ const routes = [
  // { path: '/liked',   name: 'Liked',   component: () => import('@/views/mypage/LikedView.vue'),   meta: { requiresAuth: true } },
  // { path: '/archive', name: 'Archive', component: () => import('@/views/mypage/ArchiveView.vue'), meta: { requiresAuth: true } },
 
-  // ── 기타 ──────────────────────────────────────
-  { path: '/about', name: 'About', component: () => import('@/views/AboutView.vue') },
 
   // ── 404 ──────────────────────────────────────
   { path: '/:catchAll(.*)', name: 'NotFound', component: () => import('@/views/error/NotFound.vue') },

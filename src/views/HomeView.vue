@@ -73,18 +73,20 @@
         <div class="container-xl">
           <div class="feed-grid" :class="viewMode">
             <article
-              v-for="post in filteredPosts"
-              :key="post.id"
+              v-for="post in posts"
+              :key="post.postId"
               class="fit-card"
-              @click="goToPost(post.id)"
+              @click="goToPost(post.postId)"
             >
               <div class="fit-thumb-wrap">
-                <img :src="post.image" :alt="post.user" class="fit-thumb">
+                <img :src="post.imageUrl ? `http://localhost:9090/uploads/post/${post.imageUrl}` : ''"
+                  :alt="post.nickname" class="fit-thumb">
                 <div class="fit-overlay">
                   <div class="fit-overlay-inner">
                     <div class="overlay-user">
-                      <img :src="post.profile" :alt="post.user" class="overlay-avatar">
-                      <span class="overlay-name">{{ post.user }}</span>
+                      <img :src="post.profileImage ? `http://localhost:9090/uploads/member/${post.profileImage}` : ''"
+                           class="overlay-avatar">
+                      <span class="overlay-name">{{ post.nickname }}</span>
                     </div>
                     <button
                       class="overlay-like"
@@ -97,7 +99,7 @@
                         stroke="currentColor" stroke-width="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                       </svg>
-                      {{ post.likes }}
+                      {{ post.likeCount }}
                     </button>
                   </div>
                 </div>
@@ -105,16 +107,20 @@
             </article>
           </div>
 
-          <div class="page-navigation">
+          <!-- 페이지네이션 -->
+          <div class="page-navigation" v-if="totalPage > 1">
             <div class="paginate">
-              <a href="#">‹</a>
-              <a href="#" class="active">1</a>
-              <a href="#">2</a>
-              <a href="#">3</a>
-              <a href="#">...</a>
-              <a href="#">›</a>
+              <a v-if="currentPage > 1" href="#" @click.prevent="goPage(1)">‹‹</a>
+              <a v-if="currentPage > 1" href="#" @click.prevent="goPage(currentPage - 1)">‹</a>
+              <template v-for="p in pageList" :key="p">
+                <span v-if="p === currentPage" class="active">{{ p }}</span>
+                <a v-else href="#" @click.prevent="goPage(p)">{{ p }}</a>
+              </template>
+              <a v-if="currentPage < totalPage" href="#" @click.prevent="goPage(currentPage + 1)">›</a>
+              <a v-if="currentPage < totalPage" href="#" @click.prevent="goPage(totalPage)">››</a>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -140,72 +146,86 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import '@/assets/css/home.css'
 
 const router = useRouter()
 
-// 히어로 슬라이드 — 무신사 스냅 감성 이미지
 const heroSlides = [
-  {
-    kicker: '오늘의 코디를 기록하세요',
-    title: '나만의 핏을<br>공유하세요.',
-    image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=80'
-  },
-  {
-    kicker: '트렌드 무드 아카이브',
-    title: '스타일을<br>발견하세요.',
-    image: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1600&q=80'
-  },
-  {
-    kicker: '스트릿 스타일 데일리',
-    title: '나만의 스타일,<br>나만의 룰.',
-    image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1600&q=80'
-  }
+  { kicker: '오늘의 코디를 기록하세요', title: '나만의 핏을<br>공유하세요.', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=80' },
+  { kicker: '트렌드 무드 아카이브',     title: '스타일을<br>발견하세요.',    image: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1600&q=80' },
+  { kicker: '스트릿 스타일 데일리',     title: '나만의 스타일,<br>나만의 룰.', image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1600&q=80' },
 ]
 
 const currentSlideIdx = ref(0)
-const currentSlide = computed(() => heroSlides[currentSlideIdx.value])
+const currentSlide    = computed(() => heroSlides[currentSlideIdx.value])
 
 let slideTimer = null
 onMounted(() => {
   slideTimer = setInterval(() => {
     currentSlideIdx.value = (currentSlideIdx.value + 1) % heroSlides.length
   }, 4200)
+  fetchPosts()
 })
 onUnmounted(() => clearInterval(slideTimer))
 
-// 카테고리
-const categories = ['전체', '스트릿', '캐주얼', '미니멀', '빈티지', '스포티']
+const PAGE_SIZE        = 12
+const categories       = ['전체', '스트릿', '캐주얼', '미니멀', '빈티지', '스포티']
 const selectedCategory = ref('전체')
-const viewMode = ref('grid')
+const viewMode         = ref('grid')
+const posts            = ref([])
+const totalCount       = ref(0)
+const currentPage      = ref(1)
+const loading          = ref(false)
 
-const posts = ref([
-  { id:1,  user:'@태혁',  category:'스트릿',  likes:321, liked:false, image:'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80' },
-  { id:2,  user:'@예림',  category:'캐주얼',  likes:280, liked:false, image:'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' },
-  { id:3,  user:'@동원',  category:'미니멀',  likes:192, liked:false, image:'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80' },
-  { id:4,  user:'@히히요', category:'빈티지',  likes:267, liked:false, image:'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80' },
-  { id:5,  user:'@루비',  category:'스트릿',  likes:153, liked:false, image:'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80' },
-  { id:6,  user:'@레오',  category:'캐주얼',  likes:153, liked:false, image:'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' },
-  { id:7,  user:'@이사',  category:'미니멀',  likes:553, liked:false, image:'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-  { id:8,  user:'@규리',  category:'빈티지',  likes:158, liked:false, image:'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=100&q=80' },
-  { id:9,  user:'@태성',  category:'스트릿',  likes:195, liked:false, image:'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&w=100&q=80' },
-  { id:10, user:'@이사',  category:'미니멀',  likes:374, liked:false, image:'https://images.unsplash.com/photo-1523359346063-d879354c0ea5?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-  { id:11, user:'@규리',  category:'캐주얼',  likes:192, liked:false, image:'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=100&q=80' },
-  { id:12, user:'@수진',  category:'빈티지',  likes:994, liked:false, image:'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=100&q=80' },
-])
+// 총 페이지 수
+const totalPage = computed(() => Math.ceil(totalCount.value / PAGE_SIZE))
 
-const filteredPosts = computed(() =>
-  selectedCategory.value === '전체'
-    ? posts.value
-    : posts.value.filter(p => p.category === selectedCategory.value)
-)
+// 페이지 번호 목록 (최대 10개)
+const pageList = computed(() => {
+  const block     = Math.floor((currentPage.value - 1) / 10)
+  const start     = block * 10 + 1
+  const end       = Math.min(start + 9, totalPage.value)
+  const pages     = []
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
 
-function toggleLike(post) {
+async function fetchPosts() {
+  loading.value = true
+  try {
+    const params = { page: currentPage.value, size: PAGE_SIZE }
+    if (selectedCategory.value !== '전체') params.styleTag = selectedCategory.value
+    const res = await axios.get('http://localhost:9090/api/posts', { params })
+    posts.value      = res.data.list        // ✅ { list, totalCount }
+    totalCount.value = res.data.totalCount
+  } catch (e) {
+    console.error('피드 로딩 실패:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function goPage(page) {
+  currentPage.value = page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// 카테고리 바뀌면 1페이지로
+watch(selectedCategory, () => {
+  currentPage.value = 1
+  fetchPosts()
+})
+
+// 페이지 바뀌면 재조회
+watch(currentPage, fetchPosts)
+
+async function toggleLike(post) {
   post.liked = !post.liked
-  post.likes += post.liked ? 1 : -1
-  // TODO: await axios.post(`/api/posts/${post.id}/likes`)
+  post.likeCount += post.liked ? 1 : -1
+  axios.post(`http://localhost:9090/api/posts/${post.postId}/likes`).catch(() => {})
 }
 
 function goToPost(id) {

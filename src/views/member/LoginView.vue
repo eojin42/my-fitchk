@@ -100,7 +100,7 @@ async function handleLogin() {
     login_id: form.value.loginId,
     password: form.value.password
     })
-    authStore.login(res) 
+    authStore.login(res, form.value.loginId) 
     router.push(router.currentRoute.value.query.redirect || '/')
   } catch {
     errorMsg.value = '아이디 또는 비밀번호가 올바르지 않습니다.'

@@ -21,6 +21,7 @@ export const useAuthStore = defineStore('useAuth', () => {
             role: null,
             member_id: 0,
             username: null,
+            loginId: null,
         };
     };
 
@@ -33,12 +34,13 @@ export const useAuthStore = defineStore('useAuth', () => {
 
     // actions
     // 로그인 성공할 경우 정보 저장
-    const login = (data) => {
+    const login = (data, loginId) => {
         auth.token = data.accessToken;
         auth.refreshToken = data.refreshToken;
         auth.role = data.role;
         auth.member_id = data.member_id;
         auth.username = data.name;
+        auth.loginId = loginId;
 
         localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
     }
@@ -56,7 +58,8 @@ export const useAuthStore = defineStore('useAuth', () => {
         auth.role = null;
         auth.member_id = 0;
         auth.username = null;
-
+        auth.loginId = null;
+        
         localStorage.removeItem(AUTH_KEY);
     };
 

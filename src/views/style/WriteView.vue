@@ -9,9 +9,9 @@
             <path d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
         </button>
-        <h1 class="write-title">스냅 작성하기</h1>
+        <h1 class="write-title">{{ isEditMode ? '스냅 수정하기' : '스냅 작성하기' }}</h1>
         <button class="btn-submit-top" @click="handleSubmit" :disabled="!canSubmit || loading">
-          {{ loading ? '등록 중...' : '등록하기' }}
+          {{ loading ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '수정하기' : '등록하기') }}
         </button>
       </div>
 
@@ -274,7 +274,7 @@
             @click="handleSubmit"
             :disabled="!canSubmit || loading"
           >
-            {{ loading ? '등록 중...' : '등록하기' }}
+          {{ loading ? (isEditMode ? '수정 중...' : '등록 중...') : (isEditMode ? '수정하기' : '등록하기') }}
           </button>
         </div>
 
@@ -321,11 +321,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-// import axios from 'axios'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import http from '@/util/http'
 
-const router = useRouter()
+const router  = useRouter()
+const route   = useRoute()
+
+// 수정 모드 여부
+const editPostId = route.params.id ?? null
+const isEditMode = !!editPostId
 
 // 사진
 const fileInput = ref(null)
@@ -434,7 +439,35 @@ function removePin(i) {
   if (selectedPinIdx.value === i) selectedPinIdx.value = null
 }
 
-// 유효성
+// 수정 모드: 기존 게시글 불러오기
+onMounted(async () => {
+  if (!isEditMode) return
+  try {
+    const post = await http.get(`/posts/${editPostId}`)
+    form.value.content   = post.content   ?? ''
+    form.value.gender    = post.gender    ?? ''
+    form.value.seasons   = post.seasons   ? post.seasons.split(',').map(s => s.trim()).filter(Boolean)   : []
+    form.value.styleTags = post.styleTags ? post.styleTags.split(',').map(s => s.trim()).filter(Boolean) : []
+    form.value.tpoTags   = post.tpoTags   ? post.tpoTags.split(',').map(s => s.trim()).filter(Boolean)   : []
+    form.value.height    = post.height    ?? ''
+    form.value.weight    = post.weight    ?? ''
+    // 기존 이미지는 미리보기로 표시 (업로드 파일 없이)
+    const urls = post.imageUrls?.length ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : [])
+    urls.forEach(url => {
+      photos.value.push({ file: null, preview: `http://localhost:9090/uploads/post/${url}`, existing: url })
+    })
+    // 기존 핀 불러오기
+    if (post.pins?.length) {
+      pins.value = post.pins.map(p => ({
+        brand: p.brand, productName: p.productName,
+        price: p.price, purchaseUrl: p.purchaseUrl,
+        posX: p.posX, posY: p.posY,
+      }))
+    }
+  } catch (e) {
+    console.error('게시글 불러오기 실패', e)
+  }
+})
 const canSubmit = computed(() =>
   photos.value.length > 0 && form.value.content.trim().length > 0
 )
@@ -450,23 +483,27 @@ async function handleSubmit() {
   loading.value = true
   try {
     const fd = new FormData()
-    photos.value.forEach(p => fd.append('images', p.file))
     fd.append('content',   form.value.content)
     fd.append('gender',    form.value.gender)
-    fd.append('seasons',   JSON.stringify(form.value.seasons))
-    fd.append('styleTags', JSON.stringify(form.value.styleTags))
-    fd.append('tpoTags',   JSON.stringify(form.value.tpoTags))
+    fd.append('seasons',   form.value.seasons.join(','))
+    fd.append('styleTags', form.value.styleTags.join(','))
+    fd.append('tpoTags',   form.value.tpoTags.join(','))
     fd.append('height',    form.value.height)
     fd.append('weight',    form.value.weight)
-    fd.append('pins',      JSON.stringify(pins.value))
 
-    // TODO: 실제 API 연동
-    // const res = await axios.post('/api/posts', fd)
-    // router.push(`/post/${res.data.id}`)
+    // 새로 추가된 사진만 전송 (file이 있는 것)
+    const newPhotos = photos.value.filter(p => p.file)
+    if (newPhotos.length > 0) fd.append('imageFile', newPhotos[0].file)
 
-    router.push('/')
+    if (isEditMode) {
+      await http.put(`/posts/${editPostId}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      router.push(`/posts/${editPostId}`)
+    } else {
+      await http.post('/posts', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      router.push('/')
+    }
   } catch (e) {
-    errorMsg.value = e.response?.data || '등록 중 오류가 발생했습니다.'
+    errorMsg.value = e.message || '오류가 발생했습니다.'
   } finally {
     loading.value = false
   }

@@ -3,7 +3,7 @@
     <div class="signup-wrap">
 
       <!-- 타이틀 -->
-      <h1 class="sp-title">SIGN UP</h1>
+      <h1 class="sp-title">{{ isEdit ? 'MY INFO' : 'SIGN UP' }}</h1>
       <div class="sp-title-line"></div>
 
       <!-- ① 프로필 사진 -->
@@ -30,9 +30,9 @@
         <div class="sp-section-inner">
           <p class="sp-sec-label">계정 정보</p>
 
-          <div class="account-fields">
+          <div class="account-fields" > 
             <!-- 아이디 -->
-            <div class="sp-field">
+            <div class="sp-field" >
               <label class="sp-label">아이디 <span class="sp-req">*</span></label>
               <div class="input-btn-wrap">
                 <input
@@ -170,7 +170,7 @@
       <div class="sp-submit-wrap">
         <p v-if="errorMsg" class="sp-error">{{ errorMsg }}</p>
         <button class="btn-submit" @click="handleSignup" :disabled="loading">
-          {{ loading ? '처리 중...' : '가입하기' }}
+          {{ loading ? '처리 중...' : (isEdit ? '수정하기' : '가입하기')  }}
         </button>
         <p class="to-login">
           이미 계정이 있으신가요?
@@ -184,10 +184,12 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'  
 import axios from 'axios'
 
 const router = useRouter()
+const route  = useRoute()  
+const isEdit = computed(() => route.path === '/my/edit')
 
 const form = ref({
   loginId: '', password: '', passwordConfirm: '',
@@ -216,7 +218,7 @@ async function checkId() {
   if (!form.value.loginId) { idMsg.value = '아이디를 입력해주세요.'; return }
   if (form.value.loginId.length < 6) { idMsg.value = '6자 이상 입력해주세요.'; return }
   try {
-    const res = await axios.post('/member/userIdCheck', null, { params: { login_id: form.value.loginId } })
+    const res = await axios.post('http://localhost:9090/member/userIdCheck', null, { params: { login_id: form.value.loginId } })
     if (res.data.passed === 'true') { idChecked.value = true; idMsg.value = '' }
     else { idChecked.value = false; idMsg.value = '이미 사용 중인 아이디입니다.' }
   } catch { idMsg.value = '확인 중 오류가 발생했습니다.' }
@@ -248,13 +250,30 @@ async function handleSignup() {
   loading.value = true
   try {
     const fd = new FormData()
-    Object.entries(form.value).forEach(([k, v]) => { if (k !== 'passwordConfirm') fd.append(k, v) })
-    fd.append('receiveEmail', terms.value[2] ? '1' : '0')
+    fd.append('login_id', form.value.loginId)   // camelCase → snake_case
+    fd.append('password', form.value.password)
+    fd.append('name', form.value.name)
+    fd.append('birth', form.value.birth)
+    fd.append('tel', form.value.tel)
+    fd.append('email', form.value.email)
+    fd.append('zip', form.value.zip)
+    fd.append('addr1', form.value.addr1)
+    fd.append('addr2', form.value.addr2)
+    fd.append('styleTag', form.value.styleTag)
+    fd.append('receive_email', terms.value[2] ? '1' : '0')
     if (profileFile.value) fd.append('selectFile', profileFile.value)
-    await axios.post('/api/member/account', fd)
-    router.push('/login')
+
+     if (isEdit.value) {
+      // 정보수정 API
+      await axios.post('http://localhost:9090/member/update', fd)
+      router.push('/complete?type=update')
+    } else {
+      // 회원가입 API
+      await axios.post('http://localhost:9090/member/account', fd)
+      router.push('/complete?type=signup')
+    }
   } catch (e) {
-    errorMsg.value = e.response?.data || '회원가입 중 오류가 발생했습니다.'
+    errorMsg.value = '회원가입 중 오류가 발생했습니다.'
   } finally { loading.value = false }
 }
 </script>

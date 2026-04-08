@@ -7,7 +7,7 @@
         <div class="style-head-inner">
           <div>
             <h1 class="style-title">스타일</h1>
-            <p class="style-desc">취향에 맞는 코디를 태그별로 찾아보세요.</p>
+            <p class="style-desc">취향에 맞는 코디를 필터로 찾아보세요.</p>
           </div>
           <RouterLink to="/post/write" class="btn-upload">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -16,34 +16,36 @@
             코디 올리기
           </RouterLink>
         </div>
-
-        <!-- 스타일 태그 목록 -->
-        <div class="style-tag-list">
-          <button
-            v-for="tag in styleTags"
-            :key="tag.name"
-            class="style-tag-btn"
-            :class="{ active: selectedTag === tag.name }"
-            @click="selectTag(tag.name)"
-          >
-            <span class="tag-emoji">{{ tag.emoji }}</span>
-            <span class="tag-name">{{ tag.name }}</span>
-            <span class="tag-count">{{ tag.count }}</span>
-          </button>
-        </div>
       </div>
     </div>
 
-    <!-- 선택된 태그 피드 -->
-    <div class="style-feed">
+    <!-- 필터 바 -->
+    <div class="filter-bar">
       <div class="container-xl">
-
-        <!-- 선택된 태그 표시 -->
-        <div class="feed-header">
-          <h2 class="feed-title">
-            <span class="feed-tag-name">#{{ selectedTag }}</span>
-            <span class="feed-count">{{ filteredPosts.length }}개</span>
-          </h2>
+        <div class="filter-bar-inner">
+          <div class="filter-chips">
+            <button
+              v-for="cat in filterCategories"
+              :key="cat.key"
+              class="filter-chip"
+              :class="{ active: activePanel === cat.key || hasFilter(cat.key) }"
+              @click="togglePanel(cat.key)"
+            >
+              {{ cat.label }}
+              <span v-if="getFilterCount(cat.key)" class="filter-badge">{{ getFilterCount(cat.key) }}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                :style="{ transform: activePanel === cat.key ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+            <button v-if="hasAnyFilter" class="filter-reset" @click="resetAll">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              초기화
+            </button>
+          </div>
           <div class="view-icons">
             <button type="button" :class="{ active: viewMode === 'grid' }" @click="viewMode = 'grid'">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -63,57 +65,120 @@
           </div>
         </div>
 
-        <!-- 피드 그리드 -->
-        <div class="feed-grid" :class="viewMode">
+        <!-- 드롭다운 패널 -->
+        <div class="filter-panel" v-if="activePanel">
+          <div class="filter-panel-inner">
+            <label
+              v-for="opt in currentOptions"
+              :key="opt"
+              class="filter-option"
+              :class="{ checked: isSelected(activePanel, opt) }"
+            >
+              <input type="checkbox" :checked="isSelected(activePanel, opt)" @change="toggleFilter(activePanel, opt)">
+              <span class="filter-option-label">{{ opt }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 선택된 필터 태그 -->
+        <div class="active-filters" v-if="hasAnyFilter">
+          <template v-for="cat in filterCategories" :key="cat.key">
+            <span v-for="val in filters[cat.key]" :key="val" class="active-tag">
+              {{ val }}
+              <button @click="toggleFilter(cat.key, val)">✕</button>
+            </span>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- 피드 -->
+    <div class="style-feed">
+      <div class="container-xl">
+
+        <div class="feed-header">
+          <span class="feed-count">{{ totalCount }}개</span>
+        </div>
+
+        <div class="feed-grid" :class="viewMode" v-if="posts.length > 0">
           <article
-            v-for="post in filteredPosts"
-            :key="post.id"
+            v-for="post in posts"
+            :key="post.postId"
             class="fit-card"
-            @click="$router.push(`/post/${post.id}`)"
+            @click="$router.push(`/post/${post.postId}`)"
           >
+            <!-- 썸네일 -->
             <div class="fit-thumb-wrap">
-              <img :src="post.image" :alt="post.user" class="fit-thumb">
-              <div class="fit-overlay">
-                <div class="fit-overlay-inner">
-                  <div class="overlay-user">
-                    <img :src="post.profile" :alt="post.user" class="overlay-avatar">
-                    <span class="overlay-name">{{ post.user }}</span>
-                  </div>
-                  <button
-                    class="overlay-like"
-                    type="button"
-                    @click.stop="toggleLike(post)"
-                    :class="{ liked: post.liked }"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24"
-                      :fill="post.liked ? 'currentColor' : 'none'"
-                      stroke="currentColor" stroke-width="2">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                    {{ post.likes }}
-                  </button>
-                </div>
+              <img
+                :src="post.imageUrl ? `http://localhost:9090/uploads/post/${post.imageUrl}` : ''"
+                :alt="post.nickname"
+                class="fit-thumb"
+              >
+              <!-- 좋아요 버튼 -->
+              <button
+                class="thumb-like"
+                type="button"
+                @click.stop="toggleLike(post)"
+                :class="{ liked: post.liked }"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24"
+                  :fill="post.liked ? 'currentColor' : 'none'"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- 카드 하단 텍스트 -->
+            <div class="fit-info">
+              <!-- 작성자 -->
+              <div class="fit-author">
+                <img
+                  :src="post.profileImage ? `http://localhost:9090/uploads/member/${post.profileImage}` : ''"
+                  class="fit-avatar"
+                >
+                <span class="fit-nickname">{{ post.nickname }}</span>
+              </div>
+              <!-- 본문 미리보기 -->
+              <p class="fit-content">{{ post.content }}</p>
+              <!-- 좋아요 + 댓글 수 -->
+              <div class="fit-stats">
+                <span class="fit-stat">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  {{ post.likeCount }}
+                </span>
+                <span class="fit-stat">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  {{ post.commentCount }}
+                </span>
               </div>
             </div>
           </article>
         </div>
 
-        <!-- 게시글 없을 때 -->
-        <div class="empty-state" v-if="filteredPosts.length === 0">
+        <!-- 빈 상태 -->
+        <div class="empty-state" v-if="!loading && posts.length === 0">
           <p class="empty-icon">👗</p>
-          <p class="empty-title">아직 게시글이 없어요</p>
-          <p class="empty-desc">#{{ selectedTag }} 스타일의 첫 번째 코디를 올려보세요!</p>
+          <p class="empty-title">조건에 맞는 게시글이 없어요</p>
+          <p class="empty-desc">필터를 바꿔보거나 첫 번째 코디를 올려보세요!</p>
           <RouterLink to="/post/write" class="btn-empty">코디 올리기</RouterLink>
         </div>
 
         <!-- 페이지네이션 -->
-        <div class="page-navigation" v-if="filteredPosts.length > 0">
+        <div class="page-navigation" v-if="totalPage > 1">
           <div class="paginate">
-            <a href="#">‹</a>
-            <a href="#" class="active">1</a>
-            <a href="#">2</a>
-            <a href="#">3</a>
-            <a href="#">›</a>
+            <a v-if="currentPage > 1" href="#" @click.prevent="goPage(1)">‹‹</a>
+            <a v-if="currentPage > 1" href="#" @click.prevent="goPage(currentPage - 1)">‹</a>
+            <template v-for="p in pageList" :key="p">
+              <span v-if="p === currentPage" class="active">{{ p }}</span>
+              <a v-else href="#" @click.prevent="goPage(p)">{{ p }}</a>
+            </template>
+            <a v-if="currentPage < totalPage" href="#" @click.prevent="goPage(currentPage + 1)">›</a>
+            <a v-if="currentPage < totalPage" href="#" @click.prevent="goPage(totalPage)">››</a>
           </div>
         </div>
 
@@ -136,65 +201,128 @@
       </RouterLink>
     </div>
 
+    <div v-if="activePanel" class="panel-backdrop" @click="activePanel = null"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-// import axios from 'axios'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import http from '@/util/http'
 
-const route = useRoute()
+const router    = useRouter()
+const authStore = useAuthStore()
 
-// 스타일 태그 목록
-const styleTags = [
-  { name: '스트릿',  emoji: '🧢', count: 328 },
-  { name: '캐주얼',  emoji: '👕', count: 512 },
-  { name: '미니멀',  emoji: '🤍', count: 274 },
-  { name: '빈티지',  emoji: '🧥', count: 189 },
-  { name: '스포티',  emoji: '👟', count: 156 },
-  { name: '포멀',    emoji: '👔', count: 98  },
+const filterCategories = [
+  { key: 'gender',   label: '성별' },
+  { key: 'styleTag', label: '스타일' },
+  { key: 'season',   label: '계절' },
+  { key: 'tpo',      label: 'TPO' },
 ]
 
-// URL 쿼리로 태그 초기값 설정 (?tag=스트릿)
-const selectedTag = ref(route.query.tag || '스트릿')
-const viewMode    = ref('grid')
-
-function selectTag(tag) {
-  selectedTag.value = tag
-  // TODO: API 연동 시 페이지 리셋
+const filterOptions = {
+  gender:   ['여성', '남성', '유니섹스'],
+  styleTag: ['캐주얼', '스트릿', '미니멀', '걸리시', '스포티', '클래식', '워크웨어', '로맨틱', '시크', '시티보이', '고프코어', '레트로', '프레피', '리조트', '에스닉'],
+  season:   ['봄', '여름', '가을', '겨울'],
+  tpo:      ['데일리', '데이트', '캠퍼스', '출근', '결혼식', '피트니스', '러닝', '요가/필라테스', '바다/수영', '골프', '페스티벌', '등산/아웃도어'],
 }
 
-// 더미 데이터 (실제는 API에서)
-// onMounted(async () => {
-//   const res = await axios.get('/api/posts', { params: { styleTag: selectedTag.value } })
-//   posts.value = res.data
-// })
+const activePanel = ref(null)
+const viewMode    = ref('grid')
+const posts       = ref([])
+const totalCount  = ref(0)
+const currentPage = ref(1)
+const loading     = ref(false)
+const PAGE_SIZE   = 12
 
-const posts = ref([
-  { id:1,  user:'@태혁',  category:'스트릿',  likes:321, liked:false, image:'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80' },
-  { id:2,  user:'@예림',  category:'캐주얼',  likes:280, liked:false, image:'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' },
-  { id:3,  user:'@동원',  category:'미니멀',  likes:192, liked:false, image:'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80' },
-  { id:4,  user:'@히히요', category:'빈티지',  likes:267, liked:false, image:'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80' },
-  { id:5,  user:'@루비',  category:'스트릿',  likes:153, liked:false, image:'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80' },
-  { id:6,  user:'@레오',  category:'캐주얼',  likes:153, liked:false, image:'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' },
-  { id:7,  user:'@이사',  category:'미니멀',  likes:553, liked:false, image:'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-  { id:8,  user:'@규리',  category:'빈티지',  likes:158, liked:false, image:'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=100&q=80' },
-  { id:9,  user:'@태성',  category:'스트릿',  likes:195, liked:false, image:'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&w=100&q=80' },
-  { id:10, user:'@이사',  category:'미니멀',  likes:374, liked:false, image:'https://images.unsplash.com/photo-1523359346063-d879354c0ea5?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-  { id:11, user:'@규리',  category:'캐주얼',  likes:192, liked:false, image:'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=100&q=80' },
-  { id:12, user:'@수진',  category:'빈티지',  likes:994, liked:false, image:'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=600&q=80',  profile:'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=100&q=80' },
-])
+const filters = ref({ gender: [], styleTag: [], season: [], tpo: [] })
 
-const filteredPosts = computed(() =>
-  posts.value.filter(p => p.category === selectedTag.value)
+const currentOptions = computed(() => filterOptions[activePanel.value] || [])
+
+function togglePanel(key) {
+  activePanel.value = activePanel.value === key ? null : key
+}
+
+function isSelected(key, val) { return filters.value[key].includes(val) }
+
+function toggleFilter(key, val) {
+  const arr = filters.value[key]
+  const idx = arr.indexOf(val)
+  if (idx > -1) arr.splice(idx, 1)
+  else arr.push(val)
+}
+
+function hasFilter(key)    { return filters.value[key].length > 0 }
+function getFilterCount(k) { return filters.value[k].length || 0 }
+
+const hasAnyFilter = computed(() =>
+  Object.values(filters.value).some(arr => arr.length > 0)
 )
 
-function toggleLike(post) {
-  post.liked = !post.liked
-  post.likes += post.liked ? 1 : -1
-  // TODO: await axios.post(`/api/posts/${post.id}/likes`)
+function resetAll() {
+  filters.value = { gender: [], styleTag: [], season: [], tpo: [] }
+  currentPage.value = 1
 }
+
+const totalPage = computed(() => Math.ceil(totalCount.value / PAGE_SIZE))
+
+const pageList = computed(() => {
+  const block = Math.floor((currentPage.value - 1) / 10)
+  const start = block * 10 + 1
+  const end   = Math.min(start + 9, totalPage.value)
+  const pages = []
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
+})
+
+function goPage(page) {
+  currentPage.value = page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function fetchPosts() {
+  loading.value = true
+  try {
+    const params = { page: currentPage.value, size: PAGE_SIZE }
+    if (filters.value.gender.length === 1)   params.gender   = filters.value.gender[0]
+    if (filters.value.styleTag.length > 0)   params.styleTag = filters.value.styleTag.join(',')
+    if (filters.value.season.length > 0)     params.season   = filters.value.season.join(',')
+    if (filters.value.tpo.length > 0)        params.tpo      = filters.value.tpo.join(',')
+
+    const res        = await http.get('/posts', { params })
+    posts.value      = res.list
+    totalCount.value = res.totalCount
+  } catch (e) {
+    console.error('피드 로딩 실패', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function toggleLike(post) {
+  if (!authStore.auth?.token) { router.push('/member/login'); return }
+  post.liked = !post.liked
+  post.likeCount += post.liked ? 1 : -1
+  try {
+    await http.post(`/posts/${post.postId}/likes`)
+  } catch (e) {
+    post.liked = !post.liked
+    post.likeCount += post.liked ? 1 : -1
+  }
+}
+
+function splitTags(str) {
+  if (!str) return []
+  return str.split(',').map(s => s.trim()).filter(Boolean)
+}
+
+watch(filters, () => {
+  currentPage.value = 1
+  fetchPosts()
+}, { deep: true })
+watch(currentPage, fetchPosts)
+onMounted(fetchPosts)
 </script>
 
 <style scoped>
@@ -204,221 +332,195 @@ function toggleLike(post) {
   padding-bottom: 60px;
 }
 
-/* ── 페이지 헤더 ── */
+/* ── 헤더 ── */
 .style-head {
   background: var(--fc-surface);
   border-bottom: 1px solid var(--fc-line);
-  padding: 36px 0 0;
-  animation: fadeDown 0.5s cubic-bezier(0.22,1,0.36,1) both;
+  padding: 36px 0 24px;
 }
-
-.style-head-inner {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-
-.style-title {
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.06em;
-  color: var(--fc-text);
-  margin-bottom: 6px;
-}
-
-.style-desc {
-  font-size: 0.88rem;
-  color: var(--fc-text-muted);
-}
+.style-head-inner { display: flex; align-items: flex-start; justify-content: space-between; }
+.style-title { font-size: 2rem; font-weight: 900; letter-spacing: -0.06em; color: var(--fc-text); margin-bottom: 6px; }
+.style-desc  { font-size: 0.88rem; color: var(--fc-text-muted); }
 
 .btn-upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 42px;
-  padding: 0 20px;
-  background: var(--fc-black);
-  color: #fff;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s;
-  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 42px; padding: 0 20px;
+  background: var(--fc-black); color: #fff;
+  border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+  text-decoration: none; transition: all 0.2s; flex-shrink: 0;
 }
 .btn-upload:hover { opacity: 0.85; transform: translateY(-1px); }
 
-/* 스타일 태그 버튼 목록 */
-.style-tag-list {
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+/* ── 필터 바 ── */
+.filter-bar {
+  background: var(--fc-surface);
+  border-bottom: 1px solid var(--fc-line);
+  position: sticky; top: 0; z-index: 200;
 }
-.style-tag-list::-webkit-scrollbar { display: none; }
+.filter-bar-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+.filter-chips     { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.style-tag-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 20px;
-  background: none;
-  border: none;
-  border-bottom: 2.5px solid transparent;
-  color: var(--fc-text-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  margin-bottom: -1px;
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 36px; padding: 0 14px;
+  border: 1.5px solid var(--fc-line); border-radius: 999px;
+  background: var(--fc-surface); color: var(--fc-text-muted);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  transition: all 0.18s; white-space: nowrap;
 }
+.filter-chip:hover { border-color: var(--fc-text); color: var(--fc-text); }
+.filter-chip.active { background: var(--fc-black); border-color: var(--fc-black); color: #fff; }
 
-.style-tag-btn:hover { color: var(--fc-text); }
-
-.style-tag-btn.active {
-  color: var(--fc-text);
-  border-bottom-color: var(--fc-text);
+.filter-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  background: #ff4d6d; color: #fff;
+  border-radius: 999px; font-size: 11px; font-weight: 700;
 }
 
-.tag-emoji { font-size: 1rem; }
-.tag-name  { font-size: 0.95rem; }
-.tag-count {
-  font-size: 0.72rem;
-  font-weight: 400;
-  color: var(--fc-text-muted);
-  background: var(--fc-bg);
-  padding: 1px 6px;
-  border-radius: 999px;
+.filter-reset {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 36px; padding: 0 14px;
+  border: none; background: none;
+  color: var(--fc-text-muted); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: color 0.15s;
 }
+.filter-reset:hover { color: var(--fc-text); }
 
-.style-tag-btn.active .tag-count {
-  background: rgba(17,17,17,0.08);
-  color: var(--fc-text);
+.filter-panel {
+  border-top: 1px solid var(--fc-line);
+  padding: 16px 0 20px;
+  background: var(--fc-surface);
+  position: relative; z-index: 201;
 }
+.filter-panel-inner { display: flex; flex-wrap: wrap; gap: 10px; }
 
-/* ── 피드 ── */
-.style-feed { padding: 28px 0 40px; }
-
-.feed-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  animation: fadeUp 0.4s ease both;
+.filter-option {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--fc-line); border-radius: 999px;
+  cursor: pointer; font-size: 0.88rem; font-weight: 500;
+  color: var(--fc-text-muted); background: var(--fc-surface);
+  transition: all 0.15s; user-select: none;
 }
+.filter-option input { display: none; }
+.filter-option:hover { border-color: var(--fc-text); color: var(--fc-text); }
+.filter-option.checked { background: var(--fc-black); border-color: var(--fc-black); color: #fff; font-weight: 600; }
 
-.feed-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-size: 1.4rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  color: var(--fc-text);
-}
+.active-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 14px; }
 
-.feed-count {
-  font-size: 0.85rem;
-  font-weight: 400;
-  color: var(--fc-text-muted);
-  letter-spacing: 0;
+.active-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  background: rgba(17,17,17,0.07); border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600; color: var(--fc-text);
 }
+.active-tag button { background: none; border: none; font-size: 10px; color: var(--fc-text-muted); cursor: pointer; padding: 0; }
+.active-tag button:hover { color: #e53e3e; }
+
+.panel-backdrop { position: fixed; inset: 0; z-index: 199; }
 
 .view-icons { display: flex; gap: 8px; }
-
 .view-icons button {
-  width: 38px; height: 38px;
-  border: 1.5px solid var(--fc-line) !important;
-  border-radius: 10px !important;
-  background: var(--fc-surface) !important;
-  color: var(--fc-text-muted);
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--fc-line) !important; border-radius: 10px !important;
+  background: var(--fc-surface) !important; color: var(--fc-text-muted);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  padding: 0;
+  cursor: pointer; transition: all 0.2s; padding: 0;
 }
 .view-icons button.active,
-.view-icons button:hover {
-  border-color: var(--fc-text) !important;
-  color: var(--fc-text) !important;
-}
+.view-icons button:hover { border-color: var(--fc-text) !important; color: var(--fc-text) !important; }
 
-/* 피드 그리드 */
+/* ── 피드 ── */
+.style-feed { padding: 24px 0 40px; }
+.feed-header { margin-bottom: 16px; }
+.feed-count  { font-size: 0.88rem; color: var(--fc-text-muted); font-weight: 500; }
+
 .feed-grid {
-  display: grid;
-  gap: 12px;
+  display: grid; gap: 16px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  animation: fadeUp 0.5s ease 0.1s both;
 }
-
 .feed-grid.list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
+/* ── 카드 ── */
 .fit-card { cursor: pointer; }
 
 .fit-thumb-wrap {
-  border-radius: 18px;
-  overflow: hidden;
+  border-radius: 14px; overflow: hidden;
   aspect-ratio: 0.78 / 1;
-  background: var(--fc-line);
-  position: relative;
+  background: var(--fc-line); position: relative;
 }
 
 .fit-thumb {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
+  width: 100%; height: 100%; object-fit: cover; display: block;
   transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
 }
-
 .fit-card:hover .fit-thumb { transform: scale(1.04); }
 
-.fit-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 45%);
-  display: flex; align-items: flex-end; padding: 12px;
+/* 좋아요 버튼 (우상단) */
+.thumb-like {
+  position: absolute; top: 10px; right: 10px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fc-text-muted);
+  transition: all 0.2s; z-index: 2;
+}
+.thumb-like:hover { background: #fff; color: #ff4d6d; }
+.thumb-like.liked { background: #fff; color: #ff4d6d; }
+.thumb-like.liked svg { fill: #ff4d6d; stroke: #ff4d6d; }
+
+/* 카드 하단 텍스트 */
+.fit-info { padding: 10px 4px 4px; }
+
+.fit-author {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 6px;
 }
 
-.fit-overlay-inner {
-  width: 100%; display: flex;
-  align-items: center; justify-content: space-between; gap: 6px;
+.fit-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  object-fit: cover; border: 1.5px solid var(--fc-line); flex-shrink: 0;
+  background: var(--fc-bg);
 }
 
-.overlay-user { display: flex; align-items: center; gap: 7px; min-width: 0; }
-
-.overlay-avatar {
-  width: 26px; height: 26px; border-radius: 50%;
-  object-fit: cover; border: 1.5px solid rgba(255,255,255,0.55); flex-shrink: 0;
-}
-
-.overlay-name {
-  font-size: 0.78rem; font-weight: 700; color: #fff;
+.fit-nickname {
+  font-size: 0.8rem; font-weight: 700; color: var(--fc-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.overlay-like {
-  display: flex; align-items: center; gap: 4px;
-  background: none !important; border: none !important;
-  color: rgba(255,255,255,0.85); font-size: 0.78rem; font-weight: 700;
-  cursor: pointer; flex-shrink: 0; transition: color 0.2s; padding: 0;
+.fit-tags {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
 }
-.overlay-like:hover, .overlay-like.liked { color: #ff4d6d; }
-.overlay-like.liked svg { fill: #ff4d6d; stroke: #ff4d6d; }
+
+.fit-content {
+  font-size: 0.78rem;
+  color: var(--fc-text-muted);
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 4px;
+}
+
+.fit-stats {
+  display: flex; gap: 10px;
+}
+
+.fit-stat {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.75rem; color: var(--fc-text-muted); font-weight: 500;
+}
 
 /* 빈 상태 */
-.empty-state {
-  text-align: center;
-  padding: 80px 0;
-  animation: fadeUp 0.4s ease both;
-}
-
+.empty-state { text-align: center; padding: 80px 0; }
 .empty-icon  { font-size: 3rem; margin-bottom: 14px; }
 .empty-title { font-size: 1.1rem; font-weight: 700; color: var(--fc-text); margin-bottom: 8px; }
 .empty-desc  { font-size: 0.88rem; color: var(--fc-text-muted); margin-bottom: 24px; }
 
 .btn-empty {
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; align-items: center;
   height: 46px; padding: 0 28px;
   background: var(--fc-black); color: #fff;
   border-radius: 999px; font-size: 0.88rem; font-weight: 600;
@@ -427,77 +529,34 @@ function toggleLike(post) {
 .btn-empty:hover { opacity: 0.85; transform: translateY(-1px); }
 
 /* 페이지네이션 */
-.page-navigation {
-  display: flex !important;
-  justify-content: center !important;
-  padding: 32px 0 !important;
+.page-navigation { display: flex; justify-content: center; padding: 32px 0; }
+.paginate { display: flex; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.paginate a, .paginate span {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 36px; height: 36px; padding: 0 10px; margin-left: -1px;
+  color: var(--fc-text); background: var(--fc-surface);
+  border: 1px solid var(--fc-line); text-decoration: none; transition: all 0.15s;
 }
+.paginate a:hover { background: var(--fc-bg); }
+.paginate span.active { color: #fff; background: var(--fc-black); border-color: var(--fc-black); pointer-events: none; }
+.paginate :first-child { margin-left: 0; border-radius: 6px 0 0 6px; }
+.paginate :last-child  { border-radius: 0 6px 6px 0; }
 
-.paginate {
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  font-size: 14px !important;
-}
-
-.paginate a,
-.paginate span {
-  position: relative;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  min-width: 36px !important; height: 36px !important;
-  padding: 0 10px !important; margin-left: -1px !important;
-  color: var(--fc-text) !important;
-  background: var(--fc-surface) !important;
-  border: 1px solid var(--fc-line) !important;
-  text-decoration: none !important;
-  transition: all 0.15s !important;
-}
-
-.paginate a:hover { background: var(--fc-bg) !important; }
-
-.paginate span,
-.paginate a.active {
-  color: #fff !important;
-  background: var(--fc-black) !important;
-  border-color: var(--fc-black) !important;
-  pointer-events: none !important;
-}
-
-.paginate :first-child { margin-left: 0 !important; border-radius: 6px 0 0 6px !important; }
-.paginate :last-child  { border-radius: 0 6px 6px 0 !important; }
-
-/* 하단 플로팅 바 */
+/* 하단 바 */
 .bottom-bar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-  display: flex !important; flex-direction: row !important;
-  align-items: stretch; height: 60px;
+  display: flex; height: 60px;
   background: #0d0d0d; border-top: 1px solid rgba(255,255,255,0.06);
 }
-
 .bottom-btn {
-  flex: 1;
-  display: flex !important; flex-direction: row !important;
+  flex: 1; display: flex; flex-direction: row;
   align-items: center; justify-content: center; gap: 8px;
   color: rgba(255,255,255,0.6); font-size: 0.74rem; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: none;
   text-decoration: none; border-right: 1px solid rgba(255,255,255,0.07);
-  transition: all 0.2s; cursor: pointer;
+  transition: all 0.2s;
 }
 .bottom-btn:last-child { border-right: none; }
 .bottom-btn:hover { background: rgba(255,255,255,0.05); color: #fff; }
-
-/* 애니메이션 */
-@keyframes fadeDown {
-  from { opacity: 0; transform: translateY(-12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* 반응형 */
 @media (max-width: 1199px) { .feed-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

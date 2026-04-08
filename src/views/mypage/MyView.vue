@@ -182,60 +182,36 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useRouter } from 'vue-router'
-// import axios from 'axios'
+import http from '@/util/http'
 
 const authStore = useAuthStore()
 const router    = useRouter()
 const currentTab = ref('posts')
 
-const tabs = [
-  { key: 'posts',    label: '게시물',   icon: 'span' },
-  { key: 'liked',    label: '좋아요',   icon: 'span' },
-  { key: 'archived', label: '아카이브', icon: 'span' },
-]
+const user        = ref({})
+const myPosts     = ref([])
+const likedPosts  = ref([])
+const archivedPosts = ref([])
 
-// 더미 유저 데이터
-const user = ref({
-  nickname:     '@태혁',
-  profileImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-  postCount:    12,
-  likedCount:   48,
-  archivedCount: 23,
-  height:       178,
-  weight:       68,
-  skinTone:     '웜톤',
-  styleTag:     '스트릿,캐주얼',
-})
-
-// 더미 게시글
-const myPosts = ref([
-  { postId:1, imageUrl:'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=400&q=80', likeCount:321 },
-  { postId:2, imageUrl:'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80', likeCount:195 },
-  { postId:3, imageUrl:'https://images.unsplash.com/photo-1523359346063-d879354c0ea5?w=400&q=80', likeCount:374 },
-  { postId:4, imageUrl:'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80', likeCount:153 },
-  { postId:5, imageUrl:'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80', likeCount:153 },
-  { postId:6, imageUrl:'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&q=80', likeCount:192 },
-])
-
-const likedPosts    = ref([
-  { postId:7,  imageUrl:'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&q=80', likeCount:192 },
-  { postId:8,  imageUrl:'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=400&q=80', likeCount:158 },
-  { postId:9,  imageUrl:'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=400&q=80', likeCount:267 },
-])
-
-const archivedPosts = ref([
-  { postId:10, imageUrl:'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=400&q=80', likeCount:553 },
-  { postId:11, imageUrl:'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400&q=80', likeCount:994 },
-])
-
-// TODO: 실제 API 연동
-// onMounted(async () => {
-//   if (!authStore.auth?.token) { router.push('/login'); return }
-//   const res = await axios.get('/api/member/me')
-//   user.value = res.data
-//   const posts = await axios.get('/api/posts/my')
-//   myPosts.value = posts.data
-// })
+ onMounted(async () => {
+  if (!authStore.auth?.token) { router.push('/login'); return }
+  try {
+    const res = await http.get('/member/me')
+    user.value = {
+      nickname:      res.name,
+      profileImage:  res.profile_photo
+                     ? `http://localhost:9090/uploads/member/${res.profile_photo}`
+                     : null,
+      postCount:     0,
+      likedCount:    0,
+      archivedCount: 0,
+      styleTag:      res.styleTag,
+    }
+  } catch (e) {
+    console.error('유저 정보 로딩 실패:', e)
+    // router.push('/login')  
+  }
+ })
 </script>
 
 <style scoped>
